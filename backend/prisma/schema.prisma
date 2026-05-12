@@ -1,0 +1,181 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  RESTAURANT
+  DRIVER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  PREPARING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  TELEBIRR
+  CBE_BIRR
+  CASH_ON_DELIVERY
+}
+
+model User {
+  id            String    @id @default(uuid())
+  fullName      String
+  phone         String    @unique
+  email         String    @unique
+  password      String
+  role          Role      @default(CUSTOMER)
+  profileImage  String?
+  isVerified    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  restaurants   Restaurant[]
+  orders        Order[]
+  driverProfile Driver?
+  reviews       Review[]
+  notifications Notification[]
+}
+
+model Restaurant {
+  id            String    @id @default(uuid())
+  ownerId       String
+  owner         User      @relation(fields: [ownerId], references: [id])
+  name          String
+  description   String?
+  address       String
+  latitude      Float
+  longitude     Float
+  logo          String?
+  banner        String?
+  rating        Float     @default(0.0)
+  deliveryFee   Decimal   @default(0.0)
+  isOpen        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  
+  // Relations
+  categories    Category[]
+  menuItems     MenuItem[]
+  orders        Order[]
+  reviews       Review[]
+}
+
+model Category {
+  id           String     @id @default(uuid())
+  name         String
+  image        String?
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  menuItems    MenuItem[]
+}
+
+model MenuItem {
+  id            String     @id @default(uuid())
+  restaurantId  String
+  restaurant    Restaurant @relation(fields: [restaurantId], references: [id])
+  categoryId    String
+  category      Category   @relation(fields: [categoryId], references: [id])
+  name          String
+  description   String?
+  image         String?
+  price         Decimal
+  discountPrice Decimal?
+  isAvailable   Boolean    @default(true)
+  orderItems    OrderItem[]
+}
+
+model Order {
+  id              String        @id @default(uuid())
+  customerId      String
+  customer        User          @relation(fields: [customerId], references: [id])
+  restaurantId    String
+  restaurant      Restaurant    @relation(fields: [restaurantId], references: [id])
+  driverId        String?
+  driver          Driver?       @relation(fields: [driverId], references: [id])
+  status          OrderStatus   @default(PENDING)
+  subtotal        Decimal
+  deliveryFee     Decimal
+  total           Decimal
+  paymentMethod   PaymentMethod
+  paymentStatus   PaymentStatus @default(PENDING)
+  deliveryAddress String
+  latitude        Float
+  longitude       Float
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  items           OrderItem[]
+}
+
+model OrderItem {
+  id         String   @id @default(uuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id])
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  quantity   Int
+  price      Decimal
+}
+
+model Driver {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id])
+  vehicleType      String
+  plateNumber      String
+  isOnline         Boolean  @default(false)
+  currentLatitude  Float?
+  currentLongitude Float?
+  
+  orders           Order[]
+}
+
+model Review {
+  id           String     @id @default(uuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  rating       Int
+  comment      String?
+  createdAt    DateTime   @default(now())
+}
+
+model Coupon {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  discountType  String   // percentage or fixed
+  discountValue Decimal
+  expiryDate    DateTime
+  isActive      Boolean  @default(true)
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
